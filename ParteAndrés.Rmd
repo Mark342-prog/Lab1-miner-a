@@ -5,12 +5,9 @@ output: html_document
 #Parte 1
 
 Haga una exploración rápida de sus datos, para eso haga un resumen de su conjunto de datos.
+
 ```{r Parte1}
 knitr::opts_chunk$set(echo = TRUE)
-if(!require('stats')) {
-  install.packages('stats')
-  library('stats')
-  
 movies <- read.csv("movies_2026.csv")
 
 summary(movies)
