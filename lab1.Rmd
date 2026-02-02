@@ -28,3 +28,91 @@ plot(pressure)
 ```
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+
+# Tipo de Variable
+#VARIABLES.
+
+#- id
+#Cuantitativo, discreta, integer
+
+#- budget
+#Cuantitativo, discreta, numeric
+
+#- genres
+#Cualitativo, nominal
+
+#- homePage
+#Cualitativo, nominal
+
+#- productionCompany
+#Cualitativo, nominal
+
+#- productionCompanyCountry
+#Cualitativo, nominal
+
+#- productionCountry
+#Cualitativo, nominal
+
+#- revenue
+#Cuantitativo, discreta, numeric
+
+#- runtime
+#Cuantitativo, discreta, integer
+
+#- video
+#Cualitativo, nominal
+
+#- director
+#Cualitativo, nominal
+
+#- actors
+#Cualitativo, nominal
+
+#- actorsPopularity
+#Cualitativo, ordinal
+
+#- actorsCharacter
+#Cualitativo, nominal
+
+#- originalTitle
+#Cualitativo, nominal
+
+#- title
+#Cualitativo, nominal
+
+#- originalLanguage
+#Cualitativo, nominal
+
+#- popularity
+#Cuantitativo, continua, numeric
+
+#- releaseDate
+#Cualitativo, ordinal
+
+#- voteAvg
+#Cuantitativo, continua, numeric
+
+#- voteCount
+#Cuantitativo, discreta, integer
+
+#- genresAmount
+#Cuantitativo, discreta, integer
+
+#- productionCoAmount
+#Cuantitativo, discreta, integer
+
+#- productionCountriesAmount
+#Cuantitativo, discreta, integer
+
+#- actorsAmount
+#Cuantitativo, discreta, integer
+
+#- castWomenAmount
+#Cuantitativo, discreta, integer
+
+#- castMenAmount
+#Cuantitativo, discreta, integer
+
+#- releaseYear
+#Cuantitativo, discreta, integer
