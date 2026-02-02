@@ -1,0 +1,188 @@
+---
+title: "Lab 1 - Análisis Exploratorio"
+author: "Grupo 3"
+date: "2026-02-02"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(moments)   # skewness y kurtosis
+```
+
+---
+
+## 1. Carga y estructura del dataset
+
+```{r Carga}
+movies <- read.csv("movies_2026.csv")
+
+# Resumen general
+summary(movies)
+```
+
+```{r Estructura}
+# Tabla con nombre y tipo de cada variable
+estructura <- data.frame(
+  Variable = names(movies),
+  Tipo     = sapply(movies, class)
+)
+print(estructura, row.names = FALSE)
+```
+
+En este dataset hay **28 variables** y **19 883 películas**.  
+Las variables se clasifican en:
+
+- **Cuantitativas continuas:** `budget`, `revenue`, `runtime`, `popularity`, `voteAvg`, `voteCount`  
+- **Cuantitativas discretas (conteos):** `genresAmount`, `productionCoAmount`, `productionCountriesAmount`, `actorsAmount`, `castWomenAmount`, `castMenAmount`  
+- **Cualitativas:** `originalLanguage`, `genres`, `video` (entre otras que son identificadores o texto libre)
+
+---
+
+## 2. Prueba de normalidad – variables cuantitativas
+
+Se aplica **Shapiro-Wilk** a las 6 variables cuantitativas continuas. Como el máximo permitido por la función es 5 000 observaciones, se toma una muestra aleatoria reproducible de ese tamaño.
+
+> **H₀:** la variable sigue distribución normal  
+> **Si p < 0.05** → se rechaza H₀ → **No es normal**
+
+```{r Shapiro}
+set.seed(42)
+
+vars_continuas <- c("budget", "revenue", "runtime",
+                    "popularity", "voteAvg", "voteCount")
+
+tabla_shapiro <- data.frame(
+  Variable = vars_continuas,
+  W        = NA_real_,
+  p_valor  = NA_character_,
+  Sesgo    = NA_real_,
+  Curtosis = NA_real_,
+  Decision = NA_character_,
+  stringsAsFactors = FALSE
+)
+
+for (i in seq_along(vars_continuas)) {
+  x <- na.omit(movies[[vars_continuas[i]]])
+  muestra <- sample(x, size = 5000)
+
+  res <- shapiro.test(muestra)
+
+  tabla_shapiro$W[i]        <- round(res$statistic, 4)
+  tabla_shapiro$p_valor[i]  <- ifelse(res$p.value < 0.0001, "< 0.0001",
+                                      as.character(round(res$p.value, 4)))
+  tabla_shapiro$Sesgo[i]    <- round(skewness(x), 3)
+  tabla_shapiro$Curtosis[i] <- round(kurtosis(x), 3)
+  tabla_shapiro$Decision[i] <- ifelse(res$p.value < 0.05, "No Normal", "Normal")
+}
+
+print(tabla_shapiro, row.names = FALSE)
+```
+
+> **Referencia:** una distribución normal tiene Sesgo ≈ 0 y Curtosis ≈ 3.
+
+### 2.1 Histogramas con curva normal teórica
+
+```{r Histogramas, fig.width=10, fig.height=8}
+par(mfrow = c(2, 3), mar = c(3, 3, 2, 1))
+
+for (var in vars_continuas) {
+  x <- na.omit(movies[[var]])
+
+  hist(x, freq = FALSE, breaks = 60,
+       col = "lightsteelblue", border = "white", main = var, xlab = "")
+
+  # Curva normal teórica superpuesta
+  seq_x <- seq(min(x), max(x), length.out = 200)
+  lines(seq_x, dnorm(seq_x, mean(x), sd(x)), col = "red", lwd = 2)
+}
+par(mfrow = c(1, 1))
+```
+
+### 2.2 Gráficos Q-Q
+
+```{r QQ, fig.width=10, fig.height=8}
+par(mfrow = c(2, 3), mar = c(3, 3, 2, 1))
+
+for (var in vars_continuas) {
+  qqnorm(na.omit(movies[[var]]), main = var, pch = 1, cex = 0.3)
+  qqline(na.omit(movies[[var]]), col = "red", lwd = 2)
+}
+par(mfrow = c(1, 1))
+```
+
+### Interpretación de normalidad
+
+Escribir aquí: mencionar que todas salieron "No Normal", explicar que los histogramas muestran cola larga hacia la derecha (sesgo positivo) en casi todas excepto `voteAvg` que es más simétrica, y que los Q-Q muestran desviación en las colas.
+
+---
+
+## 3. Tablas de frecuencia – variables cualitativas
+
+### 3.1 Idioma original
+
+```{r Frecuencia_Idioma}
+freq_idioma <- as.data.frame(table(movies$originalLanguage))
+colnames(freq_idioma) <- c("Idioma", "Frecuencia")
+freq_idioma$Porcentaje <- round(freq_idioma$Frecuencia / nrow(movies) * 100, 2)
+freq_idioma            <- freq_idioma[order(-freq_idioma$Frecuencia), ]
+
+print(head(freq_idioma, 10), row.names = FALSE)
+
+ggplot(head(freq_idioma, 10),
+       aes(x = reorder(Idioma, Frecuencia), y = Frecuencia)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  coord_flip() +
+  labs(title = "Top 10 idiomas originales",
+       x = "Idioma", y = "Cantidad de películas") +
+  theme_minimal()
+```
+
+### 3.2 Géneros
+
+Como una película puede tener varios géneros separados por `|`, los separamos antes de contar.
+
+```{r Frecuencia_Generos}
+generos_exp <- unlist(strsplit(as.character(movies$genres), "\\|"))
+generos_exp <- generos_exp[nchar(trimws(generos_exp)) > 0]   # eliminar vacíos
+freq_generos <- as.data.frame(table(generos_exp))
+colnames(freq_generos) <- c("Genero", "Frecuencia")
+freq_generos$Porcentaje <- round(
+  freq_generos$Frecuencia / length(generos_exp) * 100, 2
+)
+freq_generos <- freq_generos[order(-freq_generos$Frecuencia), ]
+print(freq_generos, row.names = FALSE)
+ggplot(freq_generos,
+       aes(x = reorder(Genero, Frecuencia), y = Frecuencia)) +
+  geom_bar(stat = "identity", fill = "coral") +
+  coord_flip() +
+  labs(title = "Frecuencia de géneros",
+       x = "Género", y = "Apariciones") +
+  theme_minimal()
+```
+
+### 3.3 Video disponible
+
+```{r Frecuencia_Video}
+freq_video <- as.data.frame(table(movies$video), dnn = "Video")
+colnames(freq_video)[2] <- "Frecuencia"
+freq_video$Porcentaje   <- round(freq_video$Frecuencia / nrow(movies) * 100, 2)
+
+print(freq_video, row.names = FALSE)
+
+pie(freq_video$Frecuencia,
+    labels = paste0(freq_video$Video, " (", freq_video$Porcentaje, "%)"),
+    col    = c("lightcoral", "lightgreen"),
+    main   = "Disponibilidad de video")
+```
+
+### Interpretación de frecuencias
+
+
+
+---
+
+## 4. Conclusiones generales
+
+Escribir aquí un resumen corto que conecte los dos resultados: ninguna variable cuantitativa es normal (qué implica eso para análisis futuros como correlaciones o regresiones), y qué revelan las frecuencias sobre la composición del dataset.
