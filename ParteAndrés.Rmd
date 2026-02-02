@@ -16,4 +16,9 @@ estructura <- data.frame(
   Tipo_R = sapply(movies, class)
 )
 
+estructura <- data.frame(
+  Variable = names(movies),
+  Tipo_R = sapply(movies, class)
+)
+
 ```
