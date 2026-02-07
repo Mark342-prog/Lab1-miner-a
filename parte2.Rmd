@@ -1,0 +1,423 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
+```{r message=FALSE, warning=FALSE}
+# =================================================
+# Pregunta 4.5
+# Películas producidas por año
+# =================================================
+
+# Librerías
+library(dplyr)
+library(ggplot2)
+library(knitr)
+
+# Cargar datos
+movies <- read.csv("movies_2026.csv", encoding = "latin1")
+
+# Resumen de películas por año
+movies_per_year <- movies %>%
+  group_by(releaseYear) %>%
+  summarise(
+    total_movies = n(),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(total_movies))
+
+# Tabla ordenada
+kable(
+  movies_per_year,
+  col.names = c("Año", "Cantidad de películas"),
+  caption = "Número de películas producidas por año"
+)
+```
+```{r message=FALSE, warning=FALSE, fig.width=9, fig.height=5}
+ggplot(movies_per_year, aes(x = factor(releaseYear), y = total_movies)) +
+  geom_bar(stat = "identity") +
+  labs(
+    title = "Cantidad de películas producidas por año",
+    x = "Año de estreno",
+    y = "Número de películas"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 90, vjust = 0.5)
+  )
+```
+```{r message=FALSE, warning=FALSE}
+kable(
+  movies_per_year[1, ],
+  col.names = c("Año", "Cantidad de películas"),
+  caption = "Año con mayor producción de películas"
+)
+```
+
+### Interpretación
+La Tabla muestra la cantidad de películas producidas por año. 
+Se observa que, durante el año 2025 fue el mayor año que se realizaron peliculas, siendo un total de 7351, mientras que hubieron años anteriores que se realizaron casi solo 1 película
+
+```{r}
+# -------------------------------------------------
+# 4.6.a Género principal de las 20 películas más recientes
+# -------------------------------------------------
+
+movies <- movies %>%
+  mutate(
+    main_genre = sub("\\|.*", "", genres)
+  ) %>%
+  filter(
+    !is.na(main_genre),
+    main_genre != ""
+  )
+
+recent_20_genres <- movies %>%
+  arrange(desc(releaseYear)) %>%
+  slice(1:20) %>%
+  count(main_genre, sort = TRUE)
+
+kable(
+  recent_20_genres,
+  col.names = c("Género principal", "Cantidad"),
+  caption = "Género principal de las 20 películas más recientes"
+)
+```
+Aquí se observa que, entre las 20 películas más recientes, el género
+principal que predomina es el Drama. Esto sugiere que las producciones
+más actuales tienden a enfocarse en este tipo de género.
+
+```{r}
+# -------------------------------------------------
+# 4.6.b Género principal predominante en todo el dataset
+# -------------------------------------------------
+
+all_genres <- movies %>%
+  count(main_genre, sort = TRUE)
+
+kable(
+  all_genres,
+  col.names = c("Género principal", "Cantidad"),
+  caption = "Distribución del género principal en el conjunto de datos"
+)
+
+ggplot(all_genres, aes(x = reorder(main_genre, n), y = n, fill = main_genre)) +
+  geom_bar(stat = "identity", show.legend = FALSE) +
+  coord_flip() +
+  labs(
+    title = "Género principal predominante en el conjunto de datos",
+    x = "Género",
+    y = "Cantidad de películas"
+  ) +
+  theme_minimal()
+```
+De Igual manera, el genero que mas predomina ahora en el caso de los datos en conjunto, es el drama, siendo este el mayoritario con un total de 3734 películas
+
+```{r}
+# -------------------------------------------------
+# 4.6.c Género principal de las películas más largas
+# -------------------------------------------------
+
+longest_genres <- movies %>%
+  filter(!is.na(runtime)) %>%
+  arrange(desc(runtime)) %>%
+  slice(1:20) %>%
+  count(main_genre, sort = TRUE)
+
+ggplot(longest_genres, aes(x = reorder(main_genre, n), y = n, fill = main_genre)) +
+  geom_bar(stat = "identity", show.legend = FALSE) +
+  coord_flip() +
+  labs(
+    title = "Género principal de las películas más largas",
+    x = "Género",
+    y = "Cantidad de películas"
+  ) +
+  theme_minimal()
+```
+Ahora con el tema de las peliculas mas duraderas l categoria es diferente, siendo en este caso la categoria de accion la que aparece con mayor asistencia
+
+```{r}
+# =================================================
+# Pregunta 4.7
+# Ganancias por género principal
+# =================================================
+
+# Asegurar datos válidos
+movies_revenue <- movies %>%
+  filter(
+    !is.na(revenue),
+    revenue > 0,
+    !is.na(main_genre),
+    main_genre != ""
+  )
+
+# Ganancia total por género
+revenue_by_genre <- movies_revenue %>%
+  group_by(main_genre) %>%
+  summarise(
+    total_revenue = sum(revenue),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(total_revenue))
+
+# Tabla de ganancias por género
+kable(
+  revenue_by_genre,
+  col.names = c("Género principal", "Ganancia total"),
+  caption = "Ganancia total por género principal"
+)
+```
+```{r fig.width=8, fig.height=5}
+ggplot(revenue_by_genre,
+       aes(x = reorder(main_genre, total_revenue),
+           y = total_revenue,
+           fill = main_genre)) +
+  geom_bar(stat = "identity", show.legend = FALSE) +
+  coord_flip() +
+  labs(
+    title = "Ganancia total por género principal",
+    x = "Género",
+    y = "Ganancia total"
+  ) +
+  theme_minimal()
+```
+A partir del análisis de las ganancias totales, se observa que el género
+principal que obtuvo mayores ingresos es El género de acción. Esto indica que,
+dentro del conjunto de datos analizado, las películas de este género
+han sido las más rentables en términos económicos.
+
+```{r}
+# =================================================
+# Pregunta 4.8
+# Cantidad de actores vs ingresos
+# Cantidad de actores a lo largo del tiempo
+# =================================================
+
+# Filtrar datos válidos
+movies_actors <- movies %>%
+  filter(
+    !is.na(actorsAmount),
+    !is.na(revenue),
+    actorsAmount > 0,
+    revenue > 0
+  )
+
+# -------------------------------------------------
+# 4.8.a ¿Influye la cantidad de actores en los ingresos?
+# -------------------------------------------------
+
+ggplot(movies_actors,
+       aes(x = actorsAmount, y = revenue)) +
+  geom_point(alpha = 0.6, color = "steelblue") +
+  geom_smooth(method = "lm", se = FALSE, color = "darkred") +
+  labs(
+    title = "Relación entre cantidad de actores e ingresos",
+    x = "Cantidad de actores",
+    y = "Ingresos"
+  ) +
+  theme_minimal()
+
+```
+
+El gráfico de dispersión junto con la regresión lineal muestra una
+tendencia positiva débil entre la cantidad de actores y los ingresos
+de las películas. Aunque la pendiente de la recta indica que, en
+promedio, un mayor número de actores se asocia con mayores ingresos,
+la alta dispersión de los datos sugiere que la cantidad de actores no
+es un factor determinante por sí solo. Por lo tanto, no se puede afirmar
+una relación causal directa entre ambas variables.
+
+```{r}
+# -------------------------------------------------
+# 4.8.b Cantidad de actores a lo largo del tiempo
+# -------------------------------------------------
+
+actors_by_year <- movies %>%
+  filter(
+    !is.na(actorsAmount),
+    actorsAmount > 0
+  ) %>%
+  group_by(releaseYear) %>%
+  summarise(
+    avg_actors = mean(actorsAmount),
+    .groups = "drop"
+  )
+
+ggplot(actors_by_year,
+       aes(x = releaseYear, y = avg_actors)) +
+  geom_line(color = "darkgreen") +
+  geom_point(color = "darkgreen") +
+  labs(
+    title = "Promedio de actores por película a lo largo del tiempo",
+    x = "Año de estreno",
+    y = "Promedio de actores"
+  ) +
+  theme_minimal()
+```
+A partir del análisis del promedio de actores por año, se observa que
+ha disminuido la cantidad de actores en las películas  a lo largo del tiempo. Esto indica que en los años más recientes las películas tienden a incluir menos actores en comparación con años anteriores.
+
+```{r}
+# =================================================
+# Pregunta 4.9
+# Influencia del reparto (hombres y mujeres)
+# en popularidad e ingresos
+# =================================================
+
+# Filtrar datos válidos
+movies_cast <- movies %>%
+  filter(
+    !is.na(castWomenAmount),
+    !is.na(castMenAmount),
+    !is.na(popularity),
+    !is.na(revenue),
+    revenue > 0
+  )
+
+# -------------------------------------------------
+# 4.9.a Reparto vs Popularidad
+# -------------------------------------------------
+
+model_popularity <- lm(
+  popularity ~ castWomenAmount + castMenAmount,
+  data = movies_cast
+)
+
+summary(model_popularity)
+
+# -------------------------------------------------
+# 4.9.b Reparto vs Ingresos
+# -------------------------------------------------
+
+model_revenue <- lm(
+  revenue ~ castWomenAmount + castMenAmount,
+  data = movies_cast
+)
+
+summary(model_revenue)
+```
+```{r fig.width=7, fig.height=5}
+ggplot(movies_cast,
+       aes(x = castWomenAmount,
+           y = revenue,
+           color = castMenAmount)) +
+  geom_point(alpha = 0.6) +
+  scale_color_viridis_c() +
+  labs(
+    title = "Relación entre reparto femenino, masculino e ingresos",
+    x = "Cantidad de mujeres en el reparto",
+    y = "Ingresos",
+    color = "Hombres"
+  ) +
+  theme_minimal()
+```
+El modelo de regresión múltiple indica que la cantidad de mujeres en el
+reparto presenta una relación positiva y estadísticamente significativa
+con la popularidad de las películas. Sin embargo, el valor muy bajo del
+coeficiente de determinación (R²) sugiere que esta variable explica solo
+una fracción mínima de la variabilidad observada. Por otro lado, la
+cantidad de hombres en el reparto no muestra una relación significativa
+con la popularidad.
+El modelo de regresión para los ingresos muestra que la cantidad de mujeres
+en el reparto presenta una relación positiva y estadísticamente significativa
+con los ingresos obtenidos por las películas. No obstante, el bajo valor del
+R² indica que la composición del reparto explica solo una parte reducida de
+la variabilidad en los ingresos. La cantidad de hombres en el reparto no
+presenta una relación significativa con los ingresos.
+En conjunto, los resultados sugieren que la composición del reparto,
+en términos de cantidad de hombres y mujeres, presenta asociaciones
+estadísticamente significativas en algunos casos. Sin embargo, la baja
+capacidad explicativa de los modelos indica que estos factores no son
+determinantes por sí solos del éxito de una película, el cual depende
+de múltiples variables adicionales.
+
+
+```{r}
+top_movies <- movies %>%
+  filter(
+    !is.na(director),
+    director != "",
+    !is.na(voteAvg),
+    voteCount >= 50
+  ) %>%
+  arrange(desc(voteAvg)) %>%
+  slice(1:20)
+
+kable(
+  top_movies %>%
+    select(title, director, voteAvg, voteCount),
+  col.names = c("Película", "Director", "Calificación promedio", "Cantidad de votos"),
+  caption = "Directores de las 20 películas mejor calificadas (mínimo 50 votos)"
+)
+```
+Al aplicar un umbral mínimo de 50 votos, se obtiene una selección más
+representativa de las películas mejor calificadas. Los resultados muestran
+directores con producciones consistentemente bien valoradas por el público,
+lo que sugiere una recepción positiva sostenida y no basada en valoraciones
+aisladas. Este enfoque permite un análisis más confiable del desempeño de
+los directores dentro del conjunto de datos.
+
+```{r}
+# =================================================
+# Preguntas Extra
+# 5.1 Duración de la película vs calificación promedio
+# =================================================
+
+movies_runtime <- movies %>%
+  filter(
+    !is.na(runtime),
+    runtime > 0,
+    !is.na(voteAvg),
+    voteCount >= 50
+  )
+
+ggplot(movies_runtime,
+       aes(x = runtime, y = voteAvg)) +
+  geom_point(alpha = 0.6, color = "steelblue") +
+  geom_smooth(method = "lm", se = FALSE, color = "darkred") +
+  labs(
+    title = "Relación entre duración de la película y calificación promedio",
+    x = "Duración (minutos)",
+    y = "Calificación promedio"
+  ) +
+  theme_minimal()
+```
+El análisis muestra una relación positiva leve entre la duración de las
+películas y su calificación promedio. Aunque la regresión lineal sugiere
+que las películas más largas tienden a recibir ligeramente mejores
+calificaciones, la alta dispersión de los datos indica que la duración no
+es un factor determinante en la valoración del público.
+
+
+```{r}
+# =================================================
+# 5.2 Cantidad de países de producción vs ingresos
+# =================================================
+
+movies_countries <- movies %>%
+  filter(
+    !is.na(productionCountriesAmount),
+    productionCountriesAmount > 0,
+    !is.na(revenue),
+    revenue > 0
+  )
+
+ggplot(movies_countries,
+       aes(x = factor(productionCountriesAmount),
+           y = revenue,
+           fill = factor(productionCountriesAmount))) +
+  geom_boxplot(show.legend = FALSE) +
+  labs(
+    title = "Ingresos según cantidad de países de producción",
+    x = "Cantidad de países de producción",
+    y = "Ingresos"
+  ) +
+  theme_minimal()
+```
+El análisis de los ingresos según la cantidad de países de producción
+muestra que la mayoría de las películas se producen en uno o pocos países,
+presentando una alta variabilidad en los ingresos. Aunque algunas
+coproducciones internacionales alcanzan ingresos elevados, no se observa
+una relación clara que indique que un mayor número de países de producción
+garantice mayores ingresos.
+
