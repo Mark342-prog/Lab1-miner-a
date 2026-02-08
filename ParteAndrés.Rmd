@@ -2,54 +2,236 @@
 title: "ParteAndrés"
 output: html_document
 ---
-#Parte 1
 
-Haga una exploración rápida de sus datos, para eso haga un resumen de su conjunto de datos.
+###¿Cómo se correlacionan los presupuestos con los ingresos? ¿Los altos presupuestos significan altos ingresos? Haga los gráficos que necesite, histograma, diagrama de dispersión
 
-```{r Parte1}
-knitr::opts_chunk$set(echo = TRUE)
-movies <- read.csv("movies_2026.csv")
+```{r Parte2}
+revpres <- movies_longss %>%
+  filter(revenue != "0")
+revpres$dist_00 <- sqrt(revpres$budget^2 + revpres$revenue^2)
 
-summary(movies)
+ggplot(revpres, aes(x = budget, y = revenue, colour = dist_00)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", se = FALSE, colour = "black") +
+  scale_colour_gradient(low = "lightblue", high = "red") +
+  theme_minimal()
 
-library(ggplot2)
-library(dplyr)
-library(tidyr)
-
-
-movies <- movies %>%
-  mutate(genres = gsub(" \\| ", "|", genres))
-movies_long <- movies %>%
-  separate_rows(genres, sep = "\\|")
-movies_longs <- movies_long %>%
-  separate_rows(genres, sep = "\\s*\\|\\s*")
-movies_longss <- movies_longs %>%
-  filter(budget != "0")
-
-top10_genres <- movies_longss %>%
-  group_by(genres) %>%
-  summarise(
-    presupuesto_promedio = mean(budget, na.rm = TRUE),
-    n = n()
-  ) %>%
-  arrange(desc(presupuesto_promedio)) %>%
-  slice_head(n = 10)
-
-top10_genres
-
-ggplot(top10_genres,aes(x = reorder(genres, presupuesto_promedio),y = presupuesto_promedio)) +
-  geom_col() +
-  coord_flip() +
-  labs(
-    title = "Top 10 géneros con mayor presupuesto promedio",
-    x = "Género",
-    y = "Presupuesto promedio"
-  )
-
-
-estructura <- data.frame(
-  Variable = names(movies),
-  Tipo_R = sapply(movies, class)
-)
 
 ```
+No se puede concluir que entre más presupuesto más ganancias tienen, pues la tendencia no parece ser líneal o tener una relación entre ellos, ya que existen peliculas que no siguen esto, peliculas que valen millones pero no consiguen ni la mitad de su presupuesto, así que no existe una relación real
+
+###¿Se asocian ciertos meses de lanzamiento con mejores ingresos?
+
+```{r Parte3}
+movies_fecha <- movies %>%
+  filter(revenue > 0, releaseDate != "") %>%
+  mutate(
+    releaseDate = as.Date(releaseDate),
+    mes = format(releaseDate, "%m"),
+    mes_nombre = format(releaseDate, "%B")
+  )
+ingresos_mes <- movies_fecha %>%
+  group_by(mes_nombre) %>%
+  summarise(
+    revenue_promedio = mean(revenue, na.rm = TRUE),
+    peliculas = n()
+  ) %>%
+  arrange(desc(revenue_promedio))
+
+ingresos_mes
+
+ggplot(ingresos_mes,
+       aes(x = reorder(mes_nombre, revenue_promedio),
+           y = revenue_promedio)) +
+  geom_col(fill = "steelblue") +
+  coord_flip() +
+  labs(
+    title = "Ingresos promedio por mes de lanzamiento",
+    x = "Mes",
+    y = "Ingreso promedio"
+  ) +
+  theme_minimal()
+
+```
+
+Parace que si hay relaciones con respecto al mes en el que sale, especialmente en junio
+
+### ¿En qué meses se han visto los lanzamientos con mejores ingresos?¿cuantas películas, en promedio, se han lanzado por mes?
+
+```{r Parte4}
+ingresos_mes %>%
+  mutate(
+    peliculas_promedio = mean(peliculas)
+  )
+peliculas_mes <- movies_fecha %>%
+  group_by(mes_nombre) %>%
+  summarise(
+    cantidad_peliculas = n()
+  )
+
+peliculas_mes
+ggplot(peliculas_mes,
+       aes(x = reorder(mes_nombre, cantidad_peliculas),
+           y = cantidad_peliculas)) +
+  geom_col(fill = "darkorange") +
+  coord_flip() +
+  labs(
+    title = "Cantidad de películas lanzadas por mes",
+    x = "Mes",
+    y = "Número de películas"
+  ) +
+  theme_minimal()
+
+```
+
+La mayoría salen en Diciembre, lo cual tiene sentido, pues investigando, se resalta que muchas producciones tienen por fechas limite finales de año, ya que en su mayoría de las peliculas de producción grande terminan una vez acabe el año, así como podemos ver una tendencia también en que los meses con más películas son la termianción de las "Season" en estados unidos Primavera (marzo-mayo), verano (junio-agosto), otoño (septiembre-noviembre) e invierno (diciembre-febrero).
+
+### ¿Cómo se correlacionan las calificaciones con el éxito comercial?
+
+```{r Parte5}
+ratings_rev <- movies %>%
+  filter(revenue > 0, voteAvg > 0)
+
+cor(ratings_rev$voteAvg, ratings_rev$revenue, use = "complete.obs")
+
+ggplot(ratings_rev, aes(x = voteAvg, y = revenue)) +
+  geom_point(alpha = 0.5) +
+  labs(
+    title = "Relación entre calificación y éxito comercial",
+    x = "Calificación promedio",
+    y = "Ingresos"
+  ) +
+  theme_minimal()
+
+
+```
+Pareciera ser que no necesariamente los más gustados son los que mayor ingreso tienen. La correlación suele ser positiva pero moderada: buenas calificaciones ayudan, pero no garantizan éxito comercial.
+
+¿La popularidad del elenco está correlacionada con el éxito de taquilla?
+
+```{r Parte6}
+movies <- movies %>%
+  mutate(
+    actorsPopularity_mean = sapply(
+      strsplit(as.character(actorsPopularity), "\\|"),
+      function(x) {
+        x <- as.numeric(x)
+        mean(x, na.rm = TRUE)
+      }
+    )
+  )
+actors_rev <- movies %>%
+  filter(
+    revenue > 0,
+    !is.na(actorsPopularity_mean)
+  )
+
+cor(
+  actors_rev$actorsPopularity_mean,
+  actors_rev$revenue,
+  use = "complete.obs"
+)
+
+ggplot(actors_rev,
+       aes(x = actorsPopularity_mean, y = revenue)) +
+  geom_point(alpha = 0.5, color = "purple") +
+  labs(
+    title = "Popularidad promedio del elenco vs ingresos",
+    x = "Popularidad promedio del elenco",
+    y = "Ingresos"
+  ) +
+  theme_minimal()
+
+
+
+```
+no se denota en ninguna manera que los ingresos y la poluparidad tengan algo que ver 
+
+### ¿Qué estrategias de marketing generan mejores resultados?
+
+```{r Parte7}
+marketing <- movies %>%
+  filter(revenue > 0) %>%
+  mutate(
+    tiene_video = ifelse(video == TRUE, "Sí", "No"),
+    tiene_homepage = ifelse(homePage != "", "Sí", "No")
+  )
+
+marketing %>%
+  group_by(tiene_video) %>%
+  summarise(revenue_promedio = mean(revenue))
+
+marketing %>%
+  group_by(tiene_homepage) %>%
+  summarise(revenue_promedio = mean(revenue))
+ggplot(marketing,
+       aes(x = tiene_video, y = revenue, fill = tiene_video)) +
+  geom_boxplot(alpha = 0.7) +
+  labs(
+    title = "Impacto de videos promocionales",
+    x = "Video promocional",
+    y = "Ingresos"
+  ) +
+  theme_minimal()
+
+
+```
+
+
+Parece ser que  Si ayuda tener promoción de algún tipo, pero no se puede decir si es así
+
+### preguntas extras
+
+```{r Parte8}
+movies_roi <- movies %>%
+  filter(budget > 0, revenue > 0) %>%
+  mutate(ROI = (revenue - budget) / budget)
+
+cor(movies_roi$budget, movies_roi$ROI, use = "complete.obs")
+
+ggplot(movies_roi, aes(x = budget, y = ROI)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", se = FALSE) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(
+    title = "Presupuesto vs Retorno de inversión",
+    x = "Presupuesto",
+    y = "ROI"
+  ) +
+  theme_minimal()
+
+
+```
+
+Presupuestos altos no garantizan mayor rentabilidad.
+
+```{r Parte9}
+movies_genres_roi <- movies_longss %>%
+  filter(budget > 0, revenue > 0, genres != "") %>%
+  mutate(ROI = (revenue - budget) / budget)
+
+roi_generos <- movies_genres_roi %>%
+  group_by(genres) %>%
+  summarise(
+    ROI_promedio = mean(ROI, na.rm = TRUE),
+    n = n()
+  ) %>%
+  filter(n >= 10) %>%
+  arrange(desc(ROI_promedio))
+
+ggplot(roi_generos %>% slice_head(n = 10),
+       aes(x = reorder(genres, ROI_promedio),
+           y = ROI_promedio)) +
+  geom_col(fill = "darkgreen") +
+  coord_flip() +
+  labs(
+    title = "Top 10 géneros más rentables",
+    x = "Género",
+    y = "ROI promedio"
+  ) +
+  theme_minimal()
+
+
+```
+
+Los generos más rentables parecen ser los de horror 

@@ -154,12 +154,6 @@ estructura <- data.frame(
 #Parte 3
 ## 1. Carga y estructura del dataset
 
-```{r Carga}
-movies <- read.csv("movies_2026.csv")
-
-# Resumen general
-summary(movies)
-```
 
 ```{r Estructura}
 # Tabla con nombre y tipo de cada variable
@@ -187,6 +181,8 @@ Se aplica **Shapiro-Wilk** a las 6 variables cuantitativas continuas. Como el m�
 > **Si p < 0.05** → se rechaza H₀ → **No es normal**
 
 ```{r Shapiro}
+library(moments)
+
 set.seed(42)
 
 vars_continuas <- c("budget", "revenue", "runtime",
